@@ -1,10 +1,9 @@
 import { Chess } from 'chess.js'
 import { spawn } from 'child_process'
-import fs from 'fs'
+import getGamesFromPgnFile from './utils/getGamesFromPgnFile'
 
-export default () => {
-  const file = fs.readFileSync('pgn.pgn', 'utf-8')
-  const games = file.split(/\s(?=\[Event .*\])/)
+export default (argv: string[]) => {
+  const games = getGamesFromPgnFile(argv[3])
 
   const ch = new Chess()
 
