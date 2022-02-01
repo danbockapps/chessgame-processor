@@ -11,7 +11,7 @@ export default async (argv: string[]) => {
   const uniqueLegalRxc3Games = new Set()
 
   const positions = games.flatMap((game, i) => {
-    if (i % 10000 === 0) console.log(`Loading game ${i} of ${games.length}`)
+    if (i % 10000 === 0) console.log(`// Loading game ${i} of ${games.length}`)
     ch.load_pgn(game)
     const history = ch.history()
     if (isNajdorf(history)) {
@@ -26,8 +26,12 @@ export default async (argv: string[]) => {
             ['n', 'b'].includes(ch2.get('c3')?.type || '')
           ) {
             uniqueLegalRxc3Games.add(ch.header().Site)
-            const returnable = { fen: ch2.fen(), site: `${ch.header().Site}#${zeroBasedPly + 1}` }
-            console.log(returnable)
+            const returnable = {
+              fen: ch2.fen(),
+              site: `${ch.header().Site}#${zeroBasedPly + 1}`,
+              opening: ch.header().Opening,
+            }
+            console.log(returnable, ',')
             return returnable
           }
         })
@@ -44,7 +48,7 @@ export default async (argv: string[]) => {
     score: number
   }
 
-  const stPromise = (fen: string) =>
+  const getScoredMove = (fen: string) =>
     new Promise<ScoredMove[]>(resolve => {
       let bestMoves = [
         { move: '', score: 0 },
@@ -78,28 +82,38 @@ export default async (argv: string[]) => {
       st.stdin.write(`position fen ${fen}\ngo wtime 50000 btime 50000\n`)
     })
 
-  let bmCount = 0
+  const evaluatedPositions = []
   for (const position of positions) {
     if (position) {
-      const result = await stPromise(position.fen)
+      const result = await getScoredMove(position.fen)
 
-      if (
-        result[0].score > -200 &&
-        result[0].score < 300 &&
-        (result[0].move === 'c8c3' ||
-          (result[1].move === 'c8c3' && Math.abs(result[0].score - result[1].score) < 100))
-      ) {
-        bmCount++
-        console.log(position.site)
-        console.log(result)
+      if (result[0].score > -200 && result[0].score < 300) {
+        evaluatedPositions.push({
+          site: position.site,
+          opening: position.opening,
+          result: JSON.stringify(result),
+          rxc3IsGood:
+            result[0].move === 'c8c3' ||
+            (result[1].move === 'c8c3' && Math.abs(result[0].score - result[1].score) < 100),
+        })
       }
+
+      process.stdout.write('.')
+      if (Math.random() < 0.02) process.stdout.write('\n')
     }
   }
+
+  console.log('\n\nPositions where Rxc3 is good')
+  console.log(evaluatedPositions.filter(e => e.rxc3IsGood))
+  console.log('\nPositions where Rxc3 is not good')
+  console.log(evaluatedPositions.filter(e => !e.rxc3IsGood))
+  console.log('\n')
 
   console.log('Total games', games.length)
   console.log('Total Najdorf games', najCount)
   console.log('Games with Rxc3 legal', uniqueLegalRxc3Games.size)
-  console.log('Positions that meet our criteria', bmCount)
+  console.log('Positions with Rxc3 legal', evaluatedPositions.length)
+  console.log('Positions with Rxc3 good', evaluatedPositions.filter(e => e.rxc3IsGood).length)
 
   console.timeEnd('rxc3.ts')
 }
