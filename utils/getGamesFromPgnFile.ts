@@ -1,3 +1,3 @@
-import fs from 'fs'
+import readFile from './readFile'
 
-export default (path: string) => fs.readFileSync(path, 'utf-8').split(/\s(?=\[Event .*\])/)
+export default (path: string) => readFile(path).split(/\s(?=\[Event .*\])/)
