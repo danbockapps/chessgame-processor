@@ -1,52 +1,30 @@
-import { Chess } from 'chess.js'
 import { spawn } from 'child_process'
 import fs from 'fs'
-import getGamesFromPgnFile from './utils/getGamesFromPgnFile'
+
+interface Position {
+  fen: string
+  site: string
+  opening: string
+}
+
+interface PositionFile {
+  totalGames: number
+  numGamesIncluded: number
+  numGamesWithPositionIncluded: number
+  positions: Position[]
+}
+
+interface ScoredMove {
+  move: string
+  score: number
+}
 
 export default async (argv: string[]) => {
-  console.time('rxc3.ts')
-  const games = getGamesFromPgnFile(argv[3])
-  const ch = new Chess()
-  let najCount = 0
-  const uniqueLegalRxc3Games = new Set()
-
-  const positions = games.flatMap((game, i) => {
-    if (i % 10000 === 0) console.log(`// Loading game ${i} of ${games.length}`)
-    ch.load_pgn(game)
-    const history = ch.history()
-    if (isNajdorf(history)) {
-      najCount++
-      const ch2 = new Chess()
-      return history
-        .map((move, zeroBasedPly) => {
-          ch2.move(move)
-          if (
-            ch2.turn() === 'b' &&
-            ch2.moves().includes('Rxc3') &&
-            ['n', 'b'].includes(ch2.get('c3')?.type || '')
-          ) {
-            uniqueLegalRxc3Games.add(ch.header().Site)
-            const returnable = {
-              fen: ch2.fen(),
-              site: `${ch.header().Site}#${zeroBasedPly + 1}`,
-              opening: ch.header().Opening,
-            }
-            console.log(returnable, ',')
-            return returnable
-          }
-        })
-        .filter(m => m)
-    } else return []
-  })
+  const file: PositionFile = JSON.parse(fs.readFileSync(argv[3], 'utf-8'))
 
   const st = spawn('stockfish')
   st.stdin.write('setoption name multipv value 2')
   st.stdin.write('setoption name Threads value 4')
-
-  interface ScoredMove {
-    move: string
-    score: number
-  }
 
   const getScoredMove = (fen: string) =>
     new Promise<ScoredMove[]>(resolve => {
@@ -83,15 +61,14 @@ export default async (argv: string[]) => {
     })
 
   const evaluatedPositions = []
-  for (const position of positions) {
+  for (const position of file.positions) {
     if (position) {
       const result = await getScoredMove(position.fen)
 
       if (result[0].score > -200 && result[0].score < 300) {
         evaluatedPositions.push({
           site: position.site,
-          opening: position.opening,
-          result: JSON.stringify(result),
+          result,
           rxc3IsGood:
             result[0].move === 'c8c3' ||
             (result[1].move === 'c8c3' && Math.abs(result[0].score - result[1].score) < 100),
@@ -103,21 +80,14 @@ export default async (argv: string[]) => {
     }
   }
 
-  console.log('\n\nPositions where Rxc3 is good')
-  console.log(evaluatedPositions.filter(e => e.rxc3IsGood))
-  console.log('\nPositions where Rxc3 is not good')
-  console.log(evaluatedPositions.filter(e => !e.rxc3IsGood))
-  console.log('\n')
+  evaluatedPositions.sort(a => (a.rxc3IsGood ? 1 : -1))
 
-  console.log('Total games', games.length)
-  console.log('Total Najdorf games', najCount)
-  console.log('Games with Rxc3 legal', uniqueLegalRxc3Games.size)
-  console.log('Positions with Rxc3 legal', evaluatedPositions.length)
-  console.log('Positions with Rxc3 good', evaluatedPositions.filter(e => e.rxc3IsGood).length)
+  console.log(JSON.stringify(evaluatedPositions))
 
-  console.timeEnd('rxc3.ts')
+  console.log('Total games', file.totalGames)
+  console.log('Total Najdorf games', file.numGamesIncluded)
+  console.log('Games with Rxc3 legal', file.numGamesWithPositionIncluded)
+  console.log('Positions with Rxc3 legal', file.positions.length)
+  console.log('Close positions with Rxc3 legal', evaluatedPositions.length)
+  console.log('Close positions with Rxc3 good', evaluatedPositions.filter(e => e.rxc3IsGood).length)
 }
-
-const isNajdorf = (history: string[]) =>
-  ['c5', 'd6', 'cxd4', 'Nf6', 'a6'].every(m => history.slice(0, 16).includes(m)) &&
-  !history.slice(0, 16).includes('g6')

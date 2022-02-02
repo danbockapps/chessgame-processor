@@ -1,5 +1,7 @@
 import analyzePgn from './analyzePgn'
 import rxc3 from './rxc3'
+import getGamesFromPgnFile from './utils/getGamesFromPgnFile'
+import getPositions from './utils/getPositions'
 
 switch (process.argv[2]) {
   case 'analyze-pgn':
@@ -9,4 +11,18 @@ switch (process.argv[2]) {
   case 'rxc3':
     rxc3(process.argv)
     break
+
+  case 'grp':
+    console.log(
+      JSON.stringify(
+        getPositions(
+          getGamesFromPgnFile(process.argv[3]),
+          ch => ch.header().Opening?.includes('Najdorf') || false,
+          ch =>
+            ch.turn() === 'b' &&
+            ch.moves().includes('Rxc3') &&
+            ['n', 'b'].includes(ch.get('c3')?.type || ''),
+        ),
+      ),
+    )
 }
