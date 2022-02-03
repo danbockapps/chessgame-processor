@@ -1,4 +1,5 @@
 import analyzePgn from './analyzePgn'
+import listGoodBad from './listGoodBad'
 import rxc3 from './rxc3'
 import getGamesFromPgnFile from './utils/getGamesFromPgnFile'
 import getPositions from './utils/getPositions'
@@ -25,4 +26,9 @@ switch (process.argv[2]) {
         ),
       ),
     )
+    break
+
+  case 'lgb':
+    listGoodBad(process.argv)
+    break
 }

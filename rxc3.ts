@@ -14,7 +14,7 @@ interface PositionFile {
   positions: Position[]
 }
 
-interface ScoredMove {
+export interface ScoredMove {
   move: string
   score: number
 }
