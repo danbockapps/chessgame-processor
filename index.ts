@@ -3,6 +3,7 @@ import listGoodBad from './listGoodBad'
 import rxc3 from './rxc3'
 import getGamesFromPgnFile from './utils/getGamesFromPgnFile'
 import getPositions from './utils/getPositions'
+import squareIsProtectedByPiece from './utils/squareIsProtectedByPiece'
 
 switch (process.argv[2]) {
   case 'analyze-pgn':
@@ -22,7 +23,8 @@ switch (process.argv[2]) {
           ch =>
             ch.turn() === 'b' &&
             ch.moves().includes('Rxc3') &&
-            ['n', 'b'].includes(ch.get('c3')?.type || ''),
+            ['n', 'b'].includes(ch.get('c3')?.type || '') &&
+            !squareIsProtectedByPiece(ch.fen(), 'Rxc3', 'c3'),
         ),
       ),
     )
