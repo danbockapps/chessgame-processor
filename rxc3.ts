@@ -57,7 +57,7 @@ export default async (argv: string[]) => {
         }
       })
 
-      st.stdin.write(`position fen ${fen}\ngo wtime 50000 btime 50000\n`)
+      st.stdin.write(`position fen ${fen}\ngo wtime 100000 btime 100000\n`)
     })
 
   const evaluatedPositions = []
